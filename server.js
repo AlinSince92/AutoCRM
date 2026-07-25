@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// 1. Inicialización de Supabase
+// Inicialización de Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -21,14 +21,53 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const API_KEY = process.env.GROQ_API_KEY;
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-const systemInstruction = `
-Eres el asistente virtual inteligente de un concesionario avanzado de compraventa de vehículos.
-Tu objetivo es interactuar con clientes que quieren COMPRAR o VENDER un coche.
-Tono: Profesional, automotriz, eficiente y resolutivo. Respuestas breves, directas y estructuradas.
-Pide siempre de forma natural el nombre, teléfono y qué vehículo buscan o quieren vender para poder contactarles.
-`;
+// 🔍 Función para consultar vehículos disponibles en Supabase
+async function buscarVehiculosEnStock(queryTexto) {
+  try {
+    // Le pedimos a un modelo ultra rápido que extraiga posibles términos de búsqueda (marca, combustible, etc.)
+    const promptFiltros = [
+      {
+        role: "system",
+        content: `Extrae la marca o tipo de vehículo mencionado en el mensaje.
+Responde ÚNICAMENTE con la marca o palabra clave en mayúsculas (ej: BMW, AUDI, DIESEL, SEAT).
+Si no hay ninguna marca ni filtro claro, responde ÚNICAMENTE: TODOS`
+      },
+      { role: "user", content: queryTexto }
+    ];
 
-// Función para extraer y guardar leads en Supabase de forma inteligente
+    const resFiltros = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages: promptFiltros,
+        temperature: 0.1
+      })
+    });
+
+    const dataFiltros = await resFiltros.json();
+    const filtro = dataFiltros.choices[0].message.content.trim();
+
+    let query = supabase.from("vehiculos").select("*").eq("estado", "Disponible").limit(5);
+
+    if (filtro !== "TODOS") {
+      query = query.or(`marca.ilike.%${filtro}%,modelo.ilike.%${filtro}%,combustible.ilike.%${filtro}%`);
+    }
+
+    const { data: vehiculos, error } = await query;
+    if (error) throw error;
+
+    return vehiculos || [];
+  } catch (err) {
+    console.error("⚠️ Error consultando stock:", err.message);
+    return [];
+  }
+}
+
+// 🎯 Función para extraer y guardar leads
 async function procesarYGuardarLead(history) {
   try {
     const promptExtraccion = [
@@ -36,9 +75,9 @@ async function procesarYGuardarLead(history) {
       {
         role: "user",
         content: `Analiza la conversación anterior. Si el usuario ha facilitado al menos un teléfono o nombre indicando intención de COMPRAR o VENDER un vehículo, extrae los datos en formato JSON estricto.
-Si NO hay datos suficientes (por ejemplo, solo ha saludado), responde ÚNICAMENTE con la palabra: NO_LEAD.
+Si NO hay datos suficientes, responde ÚNICAMENTE: NO_LEAD.
 
-Formato JSON esperado (sin bloques de código markdown, solo texto llano JSON):
+Formato JSON esperado (sin bloques markdown):
 {"nombre": "...", "telefono": "...", "operacion": "COMPRA o VENTA", "vehiculo": "...", "detalles": "..."}`
       }
     ];
@@ -50,7 +89,7 @@ Formato JSON esperado (sin bloques de código markdown, solo texto llano JSON):
         "Authorization": `Bearer ${API_KEY}`
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant", // Usamos el modelo ultrarrápido para el parser
+        model: "llama-3.1-8b-instant",
         messages: promptExtraccion,
         temperature: 0.1
       })
@@ -60,30 +99,46 @@ Formato JSON esperado (sin bloques de código markdown, solo texto llano JSON):
     const resultado = data.choices[0].message.content.trim();
 
     if (resultado !== "NO_LEAD") {
-      // Limpiamos posible formato markdown si la IA lo añade por error
       const jsonLimpio = resultado.replace(/```json/g, "").replace(/```/g, "").trim();
       const leadData = JSON.parse(jsonLimpio);
 
-      console.log("🎯 ¡Lead detectado! Guardando en Supabase:", leadData);
-
-      const { data: dbData, error } = await supabase
-        .from("leads")
-        .insert([leadData]);
-
-      if (error) console.error("❌ Error al guardar en Supabase:", error.message);
-      else console.log("✅ Lead guardado exitosamente en la BD");
+      console.log("🎯 Lead detectado. Guardando en Supabase:", leadData);
+      await supabase.from("leads").insert([leadData]);
     }
   } catch (err) {
-    console.error("⚠️ Error en el proceso de extracción de lead:", err.message);
+    console.error("⚠️ Error procesando lead:", err.message);
   }
 }
 
+// Endpoint principal del Chat
 app.post("/api/chat", async (req, res) => {
   const { history } = req.body;
 
   if (!history || !Array.isArray(history)) {
     return res.status(400).json({ error: "Historial de chat inválido" });
   }
+
+  const ultimoMensaje = history[history.length - 1]?.content || "";
+
+  // 1. Consultamos stock relevante en Supabase
+  const stockEncontrado = await buscarVehiculosEnStock(ultimoMensaje);
+  
+  let contextoStock = "";
+  if (stockEncontrado.length > 0) {
+    contextoStock = `\n[INVENTARIO REAL DISPONIBLE ACTUALMENTE EN EL CONCESIONARIO]:\n` + 
+      JSON.stringify(stockEncontrado, null, 2) + 
+      `\nUtiliza estos datos precisos para recomendar o confirmar stock al cliente si pregunta por vehículos.`;
+  } else {
+    contextoStock = `\n[INVENTARIO]: No se han encontrado vehículos exactos para ese filtro en este momento. Ofrece buscar alternativas o tomar sus datos.`;
+  }
+
+  const systemInstruction = `
+Eres el asistente virtual inteligente de un concesionario avanzado de compraventa de vehículos.
+Tu objetivo es interactuar con clientes que quieren COMPRAR o VENDER un coche.
+Tono: Profesional, automotriz, eficiente y resolutivo. Respuestas breves, directas y estructuradas.
+Pide siempre de forma natural el nombre, teléfono y qué vehículo buscan o quieren vender para poder contactarles.
+${contextoStock}
+`;
 
   const messages = [
     { role: "system", content: systemInstruction },
@@ -100,7 +155,7 @@ app.post("/api/chat", async (req, res) => {
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         messages: messages,
-        temperature: 0.7
+        temperature: 0.6
       })
     });
 
@@ -113,7 +168,7 @@ app.post("/api/chat", async (req, res) => {
     const reply = data.choices[0].message.content;
     res.json({ reply });
 
-    // Disparamos la extracción en segundo plano para no hacer esperar al usuario
+    // Procesar extracción de lead en segundo plano
     procesarYGuardarLead([...history, { role: "assistant", content: reply }]);
 
   } catch (error) {
@@ -122,16 +177,15 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// Ruta GET para obtener todos los leads guardados en Supabase
+// Endpoint para el Dashboard de Leads
 app.get("/api/leads", async (req, res) => {
   try {
     const { data: leads, error } = await supabase
       .from("leads")
       .select("*")
-      .order("created_at", { ascending: false }); // Los más recientes primero
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
-
     res.json({ leads });
   } catch (error) {
     console.error("❌ Error al obtener leads:", error.message);
@@ -140,5 +194,5 @@ app.get("/api/leads", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🚗 Servidor AutoCRM activo en http://localhost:${PORT} 🚗\n`);
+  console.log(`\n🚗 Servidor AutoCRM activo en puerto ${PORT} 🚗\n`);
 });
