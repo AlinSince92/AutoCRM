@@ -22,42 +22,27 @@ const API_KEY = process.env.GROQ_API_KEY;
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // 🔍 Función para consultar vehículos disponibles en Supabase
+// 🔍 Función mejorada para consultar vehículos disponibles en Supabase
 async function buscarVehiculosEnStock(queryTexto) {
   try {
-    // Le pedimos a un modelo ultra rápido que extraiga posibles términos de búsqueda (marca, combustible, etc.)
-    const promptFiltros = [
-      {
-        role: "system",
-        content: `Extrae la marca o tipo de vehículo mencionado en el mensaje.
-Responde ÚNICAMENTE con la marca o palabra clave en mayúsculas (ej: BMW, AUDI, DIESEL, SEAT).
-Si no hay ninguna marca ni filtro claro, responde ÚNICAMENTE: TODOS`
-      },
-      { role: "user", content: queryTexto }
-    ];
+    // 1. Limpiamos el texto y extraemos palabras clave relevantes de más de 2 letras
+    const palabras = queryTexto
+      .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "")
+      .split(/\s+/)
+      .filter(p => p.length > 2);
 
-    const resFiltros = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        messages: promptFiltros,
-        temperature: 0.1
-      })
-    });
+    let query = supabase.from("vehiculos").select("*").eq("estado", "Disponible");
 
-    const dataFiltros = await resFiltros.json();
-    const filtro = dataFiltros.choices[0].message.content.trim();
-
-    let query = supabase.from("vehiculos").select("*").eq("estado", "Disponible").limit(5);
-
-    if (filtro !== "TODOS") {
-      query = query.or(`marca.ilike.%${filtro}%,modelo.ilike.%${filtro}%,combustible.ilike.%${filtro}%`);
+    if (palabras.length > 0) {
+      // Construimos un filtro OR dinámico con cada palabra clave
+      const condiciones = palabras
+        .map(p => `marca.ilike.%${p}%,modelo.ilike.%${p}%,combustible.ilike.%${p}%`)
+        .join(",");
+      
+      query = query.or(condiciones);
     }
 
-    const { data: vehiculos, error } = await query;
+    const { data: vehiculos, error } = await query.limit(5);
     if (error) throw error;
 
     return vehiculos || [];
@@ -121,22 +106,24 @@ app.post("/api/chat", async (req, res) => {
   const ultimoMensaje = history[history.length - 1]?.content || "";
 
   // 1. Consultamos stock relevante en Supabase
+  // 1. Consultamos stock relevante en Supabase
   const stockEncontrado = await buscarVehiculosEnStock(ultimoMensaje);
   
   let contextoStock = "";
   if (stockEncontrado.length > 0) {
-    contextoStock = `\n[INVENTARIO REAL DISPONIBLE ACTUALMENTE EN EL CONCESIONARIO]:\n` + 
+    contextoStock = `\n[INVENTARIO REAL DISPONIBLE EN LA BASE DE DATOS]:\n` + 
       JSON.stringify(stockEncontrado, null, 2) + 
-      `\nUtiliza estos datos precisos para recomendar o confirmar stock al cliente si pregunta por vehículos.`;
+      `\nINSTRUCCIÓN CRÍTICA: Usa EXCLUSIVAMENTE los datos de la lista anterior (año, precio, kilómetros, combustible) para responder sobre este coche. Si el usuario pregunta por un dato concreto, da la cifra EXACTA del JSON.`;
   } else {
-    contextoStock = `\n[INVENTARIO]: No se han encontrado vehículos exactos para ese filtro en este momento. Ofrece buscar alternativas o tomar sus datos.`;
+    contextoStock = `\n[INVENTARIO]: No se ha encontrado ningún vehículo exacto que coincida en la base de datos para esta consulta.
+INSTRUCCIÓN CRÍTICA DE SEGURIDAD: NO te inventes el precio, ni el año, ni los kilómetros de ningún coche. Di educadamente que no encuentras ese modelo exacto en el stock actual o pide al cliente su teléfono para que un comercial revise la lista completa de 300 coches.`;
   }
 
   const systemInstruction = `
-Eres el asistente virtual inteligente de un concesionario avanzado de compraventa de vehículos.
-Tu objetivo es interactuar con clientes que quieren COMPRAR o VENDER un coche.
-Tono: Profesional, automotriz, eficiente y resolutivo. Respuestas breves, directas y estructuradas.
-Pide siempre de forma natural el nombre, teléfono y qué vehículo buscan o quieren vender para poder contactarles.
+Eres el asistente virtual inteligente de un concesionario de compraventa de vehículos.
+REGLA DE ORO DE HONESTIDAD: Jamás inventes precios, años o kilómetros de vehículos. Si un coche no aparece en el [INVENTARIO REAL], debes decir que no lo tienes localizado en este momento o consultar con el equipo.
+Tono: Profesional, automotriz, eficiente y directo.
+Pide de forma natural el nombre y teléfono para poder contactarles.
 ${contextoStock}
 `;
 
