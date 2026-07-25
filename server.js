@@ -24,37 +24,57 @@ const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 // 🔍 Función para consultar vehículos disponibles en Supabase
 // 🔍 Función mejorada para consultar vehículos disponibles en Supabase
 // 🔍 Función de búsqueda simplificada y 100% compatible con Supabase
+// 🔍 Función de búsqueda híbrida: IA + Node.js
 async function buscarVehiculosEnStock(queryTexto) {
   try {
-    // 1. Extraemos palabras de más de 1 letra y limpiamos signos
-    const palabras = queryTexto
-      .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "")
-      .split(/\s+/)
-      .filter(p => p.length > 1);
+    // 1. Usamos la IA ultrarrápida para limpiar el ruido del mensaje del cliente
+    const promptFiltros = [
+      {
+        role: "system",
+        content: `Extrae de este mensaje ÚNICAMENTE la marca y modelo del vehículo que el cliente busca. 
+Ejemplo 1: "Buenas tardes, quiero un BMW 118i" -> Respuesta: BMW 118i
+Ejemplo 2: "¿Tienes algún Audi A4 o similar?" -> Respuesta: Audi A4
+Si no menciona ningún coche en concreto (solo saluda o pregunta generalidades), responde ÚNICAMENTE: TODOS`
+      },
+      { role: "user", content: queryTexto }
+    ];
 
-    if (palabras.length === 0) {
-      const { data } = await supabase.from("vehiculos").select("*").eq("estado", "Disponible").limit(5);
-      return data || [];
-    }
-
-    // 2. Traemos los vehículos disponibles y filtramos en Node.js para evitar errores de sintaxis en PostgREST
-    const { data: todosLosVehiculos, error } = await supabase
-      .from("vehiculos")
-      .select("*")
-      .eq("estado", "Disponible");
-
-    if (error) throw error;
-    if (!todosLosVehiculos) return [];
-
-    // 3. Buscamos coincidencias de las palabras del usuario dentro de los campos del coche
-    const resultados = todosLosVehiculos.filter(coche => {
-      const textoCoche = `${coche.marca} ${coche.modelo} ${coche.combustible} ${coche.transmision}`.toLowerCase();
-      // Retorna true si al menos una palabra del mensaje del cliente está en los datos del coche
-      return palabras.some(palabra => textoCoche.includes(palabra.toLowerCase()));
+    const resFiltros = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${API_KEY}` },
+      body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: promptFiltros, temperature: 0.1 })
     });
 
-    console.log(`🔎 Búsqueda de stock para "${queryTexto}": Encontrados ${resultados.length} coches.`);
-    return resultados.slice(0, 5); // Devolvemos los 5 mejores resultados
+    const dataFiltros = await resFiltros.json();
+    const terminoBusqueda = dataFiltros.choices[0].message.content.trim().toLowerCase();
+
+    console.log("🤖 IA extrajo término de búsqueda:", terminoBusqueda);
+
+    // 2. Traemos todos los coches (sin filtrar estado aquí por si hay diferencias de formato en el Excel)
+    const { data: todos, error } = await supabase.from("vehiculos").select("*");
+    if (error) throw error;
+    if (!todos) return [];
+
+    // Si la IA dice TODOS, devolvemos 5 disponibles al azar para tener contexto
+    if (terminoBusqueda === "todos" || terminoBusqueda === "") {
+      return todos.filter(c => c.estado?.trim().toLowerCase() === "disponible").slice(0, 5);
+    }
+
+    // 3. Filtramos estrictamente: el coche debe contener TODAS las palabras clave extraídas (ej: "bmw" Y "118i")
+    const palabrasClave = terminoBusqueda.split(" ").filter(p => p.length > 1);
+    
+    const resultados = todos.filter(coche => {
+      // Ignoramos los que no estén disponibles, protegiéndonos de espacios o mayúsculas del Excel
+      if (coche.estado && coche.estado.trim().toLowerCase() !== "disponible") return false;
+      
+      const textoCoche = `${coche.marca} ${coche.modelo}`.toLowerCase();
+      
+      // .every() asegura que encuentre "bmw" Y "118i", no vale que solo tenga una de las dos
+      return palabrasClave.every(palabra => textoCoche.includes(palabra));
+    });
+
+    console.log(`🔎 Encontrados ${resultados.length} coches en stock para la búsqueda.`);
+    return resultados.slice(0, 5);
 
   } catch (err) {
     console.error("⚠️ Error consultando stock:", err.message);
