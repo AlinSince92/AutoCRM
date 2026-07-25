@@ -23,29 +23,39 @@ const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // 🔍 Función para consultar vehículos disponibles en Supabase
 // 🔍 Función mejorada para consultar vehículos disponibles en Supabase
+// 🔍 Función de búsqueda simplificada y 100% compatible con Supabase
 async function buscarVehiculosEnStock(queryTexto) {
   try {
-    // 1. Limpiamos el texto y extraemos palabras clave relevantes de más de 2 letras
+    // 1. Extraemos palabras de más de 1 letra y limpiamos signos
     const palabras = queryTexto
       .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "")
       .split(/\s+/)
-      .filter(p => p.length > 2);
+      .filter(p => p.length > 1);
 
-    let query = supabase.from("vehiculos").select("*").eq("estado", "Disponible");
-
-    if (palabras.length > 0) {
-      // Construimos un filtro OR dinámico con cada palabra clave
-      const condiciones = palabras
-        .map(p => `marca.ilike.%${p}%,modelo.ilike.%${p}%,combustible.ilike.%${p}%`)
-        .join(",");
-      
-      query = query.or(condiciones);
+    if (palabras.length === 0) {
+      const { data } = await supabase.from("vehiculos").select("*").eq("estado", "Disponible").limit(5);
+      return data || [];
     }
 
-    const { data: vehiculos, error } = await query.limit(5);
-    if (error) throw error;
+    // 2. Traemos los vehículos disponibles y filtramos en Node.js para evitar errores de sintaxis en PostgREST
+    const { data: todosLosVehiculos, error } = await supabase
+      .from("vehiculos")
+      .select("*")
+      .eq("estado", "Disponible");
 
-    return vehiculos || [];
+    if (error) throw error;
+    if (!todosLosVehiculos) return [];
+
+    // 3. Buscamos coincidencias de las palabras del usuario dentro de los campos del coche
+    const resultados = todosLosVehiculos.filter(coche => {
+      const textoCoche = `${coche.marca} ${coche.modelo} ${coche.combustible} ${coche.transmision}`.toLowerCase();
+      // Retorna true si al menos una palabra del mensaje del cliente está en los datos del coche
+      return palabras.some(palabra => textoCoche.includes(palabra.toLowerCase()));
+    });
+
+    console.log(`🔎 Búsqueda de stock para "${queryTexto}": Encontrados ${resultados.length} coches.`);
+    return resultados.slice(0, 5); // Devolvemos los 5 mejores resultados
+
   } catch (err) {
     console.error("⚠️ Error consultando stock:", err.message);
     return [];
