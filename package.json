@@ -1,0 +1,16 @@
+{
+  "name": "autocrm-ai",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.110.8",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  },
+  "scripts": {
+  "start": "node server.js"
+  }
+}

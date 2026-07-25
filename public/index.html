@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoCRM AI - Asistente Concesionario</title>
+  <style>
+    :root {
+      --bg-dark: #121214;
+      --panel-dark: #1a1a1e;
+      --accent-color: #e50914; /* Rojo deportivo */
+      --text-main: #ffffff;
+      --text-muted: #a0a0a5;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #chat-container {
+      width: 450px;
+      height: 600px;
+      background-color: var(--panel-dark);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      border: 1px solid #2a2a30;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #chat-header {
+      background-color: #222226;
+      padding: 15px 20px;
+      border-bottom: 1px solid #2a2a30;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #chat-header .status-dot {
+      width: 10px;
+      height: 10px;
+      background-color: #00e676;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00e676;
+    }
+
+    #chat-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.5px;
+    }
+
+    #chat-messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      word-wrap: break-word;
+    }
+
+    .message.user {
+      background-color: var(--accent-color);
+      color: #fff;
+      align-self: flex-end;
+      border-bottom-right-radius: 2px;
+    }
+
+    .message.bot {
+      background-color: #2c2c35;
+      color: var(--text-main);
+      align-self: flex-start;
+      border-bottom-left-radius: 2px;
+      border: 1px solid #3a3a45;
+    }
+
+    #chat-input-area {
+      padding: 15px;
+      background-color: #1a1a1e;
+      border-top: 1px solid #2a2a30;
+      display: flex;
+      gap: 10px;
+    }
+
+    #user-input {
+      flex: 1;
+      background-color: #26262b;
+      border: 1px solid #3a3a45;
+      border-radius: 6px;
+      padding: 12px;
+      color: white;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #user-input:focus {
+      border-color: var(--accent-color);
+    }
+
+    #send-btn {
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      padding: 0 20px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    #send-btn:hover {
+      background-color: #b8070f;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="chat-container">
+    <div id="chat-header">
+      <div class="status-dot"></div>
+      <div>
+        <h2>AutoCRM AI • Concesionario</h2>
+      </div>
+    </div>
+    
+    <div id="chat-messages">
+      <div class="message bot">¡Hola! Bienvenido a nuestro concesionario. ¿Estás interesado en comprar un vehículo de nuestro stock o te gustaría que tasemos tu coche actual para venderlo?</div>
+    </div>
+
+    <div id="chat-input-area">
+      <input type="text" id="user-input" placeholder="Escribe tu mensaje aquí..." autocomplete="off">
+      <button id="send-btn">Enviar</button>
+    </div>
+  </div>
+
+  <script>
+    const chatMessages = document.getElementById("chat-messages");
+    const userInput = document.getElementById("user-input");
+    const sendBtn = document.getElementById("send-btn");
+
+    // Historial dinámico en memoria del navegador
+    let chatHistory = [];
+
+    async function sendMessage() {
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      // Renderizar mensaje del usuario
+      appendMessage(text, "user");
+      userInput.value = "";
+
+      // Guardar en el historial local
+      chatHistory.push({ role: "user", content: text });
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ history: chatHistory })
+        });
+
+        const data = await response.json();
+        
+        if (data.reply) {
+          appendMessage(data.reply, "bot");
+          chatHistory.push({ role: "assistant", content: data.reply });
+        } else {
+          appendMessage("❌ Error: No se pudo obtener respuesta.", "bot");
+        }
+      } catch (error) {
+        appendMessage("❌ Error de red al conectar con el servidor.", "bot");
+      }
+    }
+
+    function appendMessage(text, sender) {
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("message", sender);
+      msgDiv.textContent = text;
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    userInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
+</body>
+</html>
