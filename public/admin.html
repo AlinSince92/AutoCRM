@@ -71,13 +71,13 @@
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-slate-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase">
+                <th class="p-4">Aviso</th>
                 <th class="p-4">Matrícula</th>
                 <th class="p-4">Vehículo</th>
                 <th class="p-4">Centro</th>
                 <th class="p-4">Estado</th>
                 <th class="p-4">P. Contado</th>
                 <th class="p-4">Margen Neto</th>
-                <th class="p-4">Comercial</th>
                 <th class="p-4 text-center">Acciones</th>
               </tr>
             </thead>
@@ -128,14 +128,24 @@
 
         <!-- BLOQUE 1: DATOS GENERALES Y OPERATIVOS -->
         <div>
-          <h4 class="font-bold text-red-600 uppercase text-xs tracking-wider mb-3 border-b pb-1">1. Operación Comercial</h4>
+          <h4 class="font-bold text-red-600 uppercase text-xs tracking-wider mb-3 border-b pb-1">1. Operación Comercial y Alerta Visual</h4>
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block font-semibold mb-1">Aviso Visual (Tag)</label>
+              <select id="field-flag_estado" class="w-full border rounded-lg p-2 font-medium">
+                <option value="">-- Sin aviso --</option>
+                <option value="chapa">🟠 En Chapa</option>
+                <option value="sustitucion">🚗 Sustitución (OUT)</option>
+                <option value="novedad">🟢 Novedad (NEW)</option>
+                <option value="rebajado">🔵 Rebajado (↓)</option>
+              </select>
+            </div>
             <div>
               <label class="block font-semibold mb-1">Matrícula</label>
               <input type="text" id="field-matricula" required class="w-full border rounded-lg p-2 uppercase">
             </div>
             <div>
-              <label class="block font-semibold mb-1">Estado</label>
+              <label class="block font-semibold mb-1">Estado Operativo</label>
               <input type="text" id="field-estado" placeholder="Ej: Disponible, Reservado" class="w-full border rounded-lg p-2">
             </div>
             <div>
@@ -161,10 +171,6 @@
             <div>
               <label class="block font-semibold mb-1">Cobro / Entidad</label>
               <input type="text" id="field-cobro" class="w-full border rounded-lg p-2">
-            </div>
-            <div>
-              <label class="block font-semibold mb-1">Variación</label>
-              <input type="text" id="field-variacion" class="w-full border rounded-lg p-2">
             </div>
           </div>
         </div>
@@ -317,6 +323,9 @@
       list.forEach(item => {
         html += `
           <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+            <td class="p-4">
+              ${getVisualFlagBadge(item.flag_estado)}
+            </td>
             <td class="p-4 font-mono font-bold text-slate-700">
               <button onclick="toggleDetails(${item.id})" class="mr-2 text-gray-400 hover:text-red-600"><i class="fa-solid fa-chevron-right" id="icon-${item.id}"></i></button>
               ${item.matricula || 'S/M'}
@@ -329,7 +338,6 @@
             <td class="p-4">${getBadgeStatus(item.estado)}</td>
             <td class="p-4 font-bold text-slate-800">${item.precio_contado ? item.precio_contado.toLocaleString() + ' €' : '-'}</td>
             <td class="p-4 font-bold text-emerald-600">${item.margen_neto ? item.margen_neto.toLocaleString() + ' €' : '-'}</td>
-            <td class="p-4 text-xs text-gray-600">${item.comercial || 'N/A'}</td>
             <td class="p-4 text-center space-x-2">
               <button onclick="toggleDetails(${item.id})" title="Ver Ficha Completa" class="text-slate-600 hover:text-slate-900"><i class="fa-solid fa-eye"></i></button>
               <button onclick="editVehicle(${item.id})" title="Editar" class="text-blue-600 hover:text-blue-800"><i class="fa-solid fa-pen-to-square"></i></button>
@@ -345,10 +353,10 @@
                 <!-- Columna 1: Operación y Comercial -->
                 <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
                   <h5 class="font-bold text-slate-800 border-b pb-2 mb-2 text-sm"><i class="fa-solid fa-user-tie text-red-500 mr-2"></i>Gestión Yamovil</h5>
+                  <p><span class="text-gray-500">Comercial:</span> <strong>${item.comercial || '-'}</strong></p>
                   <p><span class="text-gray-500">Tasador:</span> <strong>${item.tasador || '-'}</strong></p>
                   <p><span class="text-gray-500">Procedencia:</span> <strong>${item.procedencia || '-'}</strong></p>
                   <p><span class="text-gray-500">Cobro:</span> <strong>${item.cobro || '-'}</strong></p>
-                  <p><span class="text-gray-500">Variación:</span> <strong>${item.variacion || '-'}</strong></p>
                   <p><span class="text-gray-500">Garantía:</span> <strong>${item.garantia || '-'}</strong></p>
                 </div>
 
@@ -379,6 +387,24 @@
       });
 
       tbody.innerHTML = html;
+    }
+
+    function getVisualFlagBadge(flag) {
+      if (!flag) return `<span class="text-gray-300 text-xs">-</span>`;
+      const f = flag.toLowerCase();
+      if (f === 'chapa') {
+        return `<span class="bg-orange-500 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-md shadow-sm inline-flex items-center gap-1.5"><i class="fa-solid fa-wrench text-[10px]"></i> CHAPA</span>`;
+      }
+      if (f === 'sustitucion') {
+        return `<span class="bg-slate-800 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-md shadow-sm inline-flex items-center gap-1">🚗 OUT</span>`;
+      }
+      if (f === 'novedad') {
+        return `<span class="bg-emerald-600 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-md shadow-sm inline-flex items-center gap-1">✨ NEW</span>`;
+      }
+      if (f === 'rebajado') {
+        return `<span class="bg-blue-600 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-md shadow-sm inline-flex items-center gap-1"><i class="fa-solid fa-arrow-down text-[10px]"></i> REBAJA</span>`;
+      }
+      return `<span class="text-gray-400 text-xs">-</span>`;
     }
 
     function toggleDetails(id) {
@@ -417,7 +443,7 @@
         (i.marca && i.marca.toLowerCase().includes(q)) ||
         (i.modelo && i.modelo.toLowerCase().includes(q)) ||
         (i.centro && i.centro.toLowerCase().includes(q)) ||
-        (i.tasador && i.tasador.toLowerCase().includes(q)) ||
+        (i.flag_estado && i.flag_estado.toLowerCase().includes(q)) ||
         (i.comercial && i.comercial.toLowerCase().includes(q))
       );
       renderStock(filtered);
@@ -439,6 +465,7 @@
       if (!item) return;
 
       document.getElementById("field-id").value = item.id;
+      document.getElementById("field-flag_estado").value = item.flag_estado || "";
       document.getElementById("field-matricula").value = item.matricula || "";
       document.getElementById("field-estado").value = item.estado || "";
       document.getElementById("field-centro").value = item.centro || "Embajadores";
@@ -446,7 +473,6 @@
       document.getElementById("field-comercial").value = item.comercial || "";
       document.getElementById("field-tasador").value = item.tasador || "";
       document.getElementById("field-cobro").value = item.cobro || "";
-      document.getElementById("field-variacion").value = item.variacion || "";
 
       document.getElementById("field-marca").value = item.marca || "";
       document.getElementById("field-modelo").value = item.modelo || "";
@@ -480,6 +506,7 @@
       const id = document.getElementById("field-id").value;
       
       const payload = {
+        flag_estado: document.getElementById("field-flag_estado").value,
         matricula: document.getElementById("field-matricula").value,
         estado: document.getElementById("field-estado").value,
         centro: document.getElementById("field-centro").value,
@@ -487,7 +514,6 @@
         comercial: document.getElementById("field-comercial").value,
         tasador: document.getElementById("field-tasador").value,
         cobro: document.getElementById("field-cobro").value,
-        variacion: document.getElementById("field-variacion").value,
 
         marca: document.getElementById("field-marca").value,
         modelo: document.getElementById("field-modelo").value,
