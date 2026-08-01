@@ -3,225 +3,364 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AutoCRM AI - Dashboard de Leads</title>
-  <style>
-    :root {
-      --bg-dark: #121214;
-      --panel-dark: #1a1a1e;
-      --accent-color: #e50914;
-      --text-main: #ffffff;
-      --text-muted: #a0a0a5;
-      --border-color: #2a2a30;
-    }
-
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-dark);
-      color: var(--text-main);
-      padding: 30px;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 1.8rem;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .badge {
-      background-color: var(--accent-color);
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: bold;
-    }
-
-    .refresh-btn {
-      background-color: #26262b;
-      color: white;
-      border: 1px solid var(--border-color);
-      padding: 10px 18px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: all 0.2s;
-    }
-
-    .refresh-btn:hover {
-      background-color: var(--accent-color);
-      border-color: var(--accent-color);
-    }
-
-    .table-container {
-      background-color: var(--panel-dark);
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
-      overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    th {
-      background-color: #222226;
-      padding: 16px;
-      color: var(--text-muted);
-      font-weight: 600;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    td {
-      padding: 16px;
-      border-bottom: 1px solid var(--border-color);
-      font-size: 0.95rem;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    tr:hover {
-      background-color: #222228;
-    }
-
-    .tag-operacion {
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-weight: bold;
-      font-size: 0.8rem;
-      display: inline-block;
-    }
-
-    .tag-operacion.COMPRA {
-      background-color: rgba(0, 230, 118, 0.15);
-      color: #00e676;
-      border: 1px solid #00e676;
-    }
-
-    .tag-operacion.VENTA {
-      background-color: rgba(229, 9, 20, 0.15);
-      color: #ff5252;
-      border: 1px solid #ff5252;
-    }
-
-    .phone-link {
-      color: #40c4ff;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .phone-link:hover {
-      text-decoration: underline;
-    }
-
-    .empty-state {
-      padding: 40px;
-      text-align: center;
-      color: var(--text-muted);
-    }
-  </style>
+  <title>AutoCRM | Yamovil Control Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
+<body class="bg-gray-100 font-sans text-gray-800">
 
-  <div class="container">
-    <header>
-      <h1>🚗 AutoCRM AI <span class="badge">Panel de Leads</span></h1>
-      <button class="refresh-btn" onclick="cargarLeads()">🔄 Actualizar Datos</button>
-    </header>
+  <!-- Header / Navbar -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-car-side text-red-500 text-2xl"></i>
+        <h1 class="text-2xl font-bold tracking-wide">Yamovil <span class="text-red-500">AutoCRM</span></h1>
+      </div>
+      
+      <!-- Navegación por Pestañas -->
+      <nav class="flex space-x-2 bg-slate-800 p-1.5 rounded-lg">
+        <button id="tab-stock-btn" onclick="switchTab('stock')" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors bg-red-600 text-white">
+          <i class="fa-solid fa-boxes-stacked mr-2"></i>Gestión de Stock
+        </button>
+        <button id="tab-leads-btn" onclick="switchTab('leads')" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors text-gray-300 hover:text-white">
+          <i class="fa-solid fa-user-gear mr-2"></i>Leads Captados
+        </button>
+      </nav>
+    </div>
+  </header>
 
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Nombre</th>
-            <th>Teléfono</th>
-            <th>Operación</th>
-            <th>Vehículo</th>
-            <th>Detalles</th>
-          </tr>
-        </thead>
-        <tbody id="leads-body">
-          <tr>
-            <td colspan="6" class="empty-state">Cargando leads desde Supabase...</td>
-          </tr>
-        </tbody>
-      </table>
+  <!-- Contenedor Principal -->
+  <main class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- ================= SECCIÓN 1: GESTIÓN DE STOCK (CRM) ================= -->
+    <section id="section-stock">
+      <!-- Tarjetas KPI -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <p class="text-xs uppercase font-bold text-gray-400">Total Stock</p>
+          <h3 id="kpi-total" class="text-3xl font-extrabold text-slate-800 mt-1">0</h3>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <p class="text-xs uppercase font-bold text-emerald-500">Disponibles</p>
+          <h3 id="kpi-disponibles" class="text-3xl font-extrabold text-emerald-600 mt-1">0</h3>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <p class="text-xs uppercase font-bold text-amber-500">Reservados</p>
+          <h3 id="kpi-reservados" class="text-3xl font-extrabold text-amber-600 mt-1">0</h3>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <p class="text-xs uppercase font-bold text-blue-500">Entregados / Vendidos</p>
+          <h3 id="kpi-entregados" class="text-3xl font-extrabold text-blue-600 mt-1">0</h3>
+        </div>
+      </div>
+
+      <!-- Barra de Herramientas -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="relative w-full md:w-96">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-3.5 text-gray-400"></i>
+          <input type="text" id="stock-search" oninput="filtrarStock()" placeholder="Buscar por matrícula, modelo, centro, comercial..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none text-sm">
+        </div>
+        <button onclick="openModal()" class="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-plus"></i> Añadir Vehículo
+        </button>
+      </div>
+
+      <!-- Tabla de Vehículos -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase">
+                <th class="p-4">Matrícula</th>
+                <th class="p-4">Vehículo</th>
+                <th class="p-4">Centro</th>
+                <th class="p-4">Estado</th>
+                <th class="p-4">Km / Año</th>
+                <th class="p-4">P. Contado</th>
+                <th class="p-4">Comercial</th>
+                <th class="p-4 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="stock-table-body" class="divide-y divide-gray-100 text-sm">
+              <!-- Carga dinámica -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ================= SECCIÓN 2: LEADS CAPTADOS ================= -->
+    <section id="section-leads" class="hidden">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-bold mb-4 text-slate-800">Clientes Atendidos por AdIA</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase">
+                <th class="p-4">Fecha</th>
+                <th class="p-4">Nombre</th>
+                <th class="p-4">Teléfono</th>
+                <th class="p-4">Operación</th>
+                <th class="p-4">Interés</th>
+                <th class="p-4">Detalles</th>
+              </tr>
+            </thead>
+            <tbody id="leads-table-body" class="divide-y divide-gray-100 text-sm">
+              <!-- Carga dinámica -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= MODAL DE EDICIÓN / ALTA ================= -->
+  <div id="vehicle-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+      <div class="flex justify-between items-center pb-4 border-b">
+        <h3 id="modal-title" class="text-xl font-bold text-slate-800">Añadir Vehículo</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <form id="vehicle-form" onsubmit="saveVehicle(event)" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <input type="hidden" id="field-id">
+
+        <div>
+          <label class="block font-semibold mb-1">Matrícula</label>
+          <input type="text" id="field-matricula" required class="w-full border rounded-lg p-2 uppercase">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Estado</label>
+          <select id="field-estado" class="w-full border rounded-lg p-2">
+            <option value="Disponible">Disponible</option>
+            <option value="Reservado">Reservado</option>
+            <option value="Entregado">Entregado</option>
+            <option value="Chapa">Chapa</option>
+            <option value="Cobrado">Cobrado</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Marca</label>
+          <input type="text" id="field-marca" required class="w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Modelo</label>
+          <input type="text" id="field-modelo" required class="w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Centro Yamovil</label>
+          <select id="field-centro" class="w-full border rounded-lg p-2">
+            <option value="Embajadores">Embajadores</option>
+            <option value="Alcalá">Alcalá</option>
+            <option value="Pinto">Pinto</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Kilómetros</label>
+          <input type="number" id="field-kilometros" class="w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Precio Contado (€)</label>
+          <input type="number" id="field-precio_contado" class="w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Precio Financiado (€)</label>
+          <input type="number" id="field-precio_financiado" class="w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Comercial Asignado</label>
+          <input type="text" id="field-comercial" class="w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Tasador</label>
+          <input type="text" id="field-tasador" class="w-full border rounded-lg p-2">
+        </div>
+
+        <div class="md:col-span-2 flex justify-end gap-3 mt-6 pt-4 border-t">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancelar</button>
+          <button type="submit" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold">Guardar Vehículo</button>
+        </div>
+      </form>
     </div>
   </div>
 
+  <!-- JavaScript CRM App -->
   <script>
-    async function cargarLeads() {
-      const tbody = document.getElementById("leads-body");
-      
-      try {
-        const response = await fetch("/api/leads");
-        const data = await response.json();
+    let stockData = [];
 
-        if (!data.leads || data.leads.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No hay leads registrados todavía.</td></tr>`;
-          return;
-        }
+    // Inicialización
+    document.addEventListener("DOMContentLoaded", () => {
+      loadStock();
+      loadLeads();
+    });
 
-        tbody.innerHTML = data.leads.map(lead => {
-          const fecha = new Date(lead.created_at).toLocaleString('es-ES', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-
-          const opClass = lead.operacion ? lead.operacion.toUpperCase() : '';
-
-          return `
-            <tr>
-              <td style="color: var(--text-muted); font-size: 0.85rem;">${fecha}</td>
-              <td><strong>${lead.nombre || 'Sin nombre'}</strong></td>
-              <td>
-                ${lead.telefono 
-                  ? `<a href="tel:${lead.telefono}" class="phone-link">📞 ${lead.telefono}</a>` 
-                  : '<span style="color: var(--text-muted);">Sin teléfono</span>'}
-              </td>
-              <td>
-                <span class="tag-operacion ${opClass}">${lead.operacion || 'N/A'}</span>
-              </td>
-              <td><strong>${lead.vehiculo || '-'}</strong></td>
-              <td style="color: var(--text-muted);">${lead.detalles || '-'}</td>
-            </tr>
-          `;
-        }).join("");
-
-      } catch (error) {
-        tbody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color: #ff5252;">Error al cargar los leads desde el servidor.</td></tr>`;
+    // Pestañas
+    function switchTab(tab) {
+      if (tab === 'stock') {
+        document.getElementById('section-stock').classList.remove('hidden');
+        document.getElementById('section-leads').classList.add('hidden');
+        document.getElementById('tab-stock-btn').className = "px-4 py-2 text-sm font-semibold rounded-md bg-red-600 text-white";
+        document.getElementById('tab-leads-btn').className = "px-4 py-2 text-sm font-semibold rounded-md text-gray-300 hover:text-white";
+      } else {
+        document.getElementById('section-stock').classList.add('hidden');
+        document.getElementById('section-leads').classList.remove('hidden');
+        document.getElementById('tab-leads-btn').className = "px-4 py-2 text-sm font-semibold rounded-md bg-red-600 text-white";
+        document.getElementById('tab-stock-btn').className = "px-4 py-2 text-sm font-semibold rounded-md text-gray-300 hover:text-white";
       }
     }
 
-    // Carga inicial al abrir la página
-    cargarLeads();
+    // Cargar Vehículos
+    async function loadStock() {
+      try {
+        const res = await fetch("/api/vehiculos");
+        const data = await res.json();
+        stockData = data.vehiculos || [];
+        renderStock(stockData);
+        updateKPIs(stockData);
+      } catch (e) {
+        console.error("Error al cargar stock:", e);
+      }
+    }
+
+    // Renderizar Tabla de Stock
+    function renderStock(list) {
+      const tbody = document.getElementById("stock-table-body");
+      tbody.innerHTML = list.map(item => `
+        <tr class="hover:bg-gray-50 transition">
+          <td class="p-4 font-mono font-bold text-slate-700">${item.matricula || 'S/M'}</td>
+          <td class="p-4">
+            <div class="font-bold text-slate-800">${item.marca} ${item.modelo}</div>
+            <div class="text-xs text-gray-500">${item.combustible || ''} | ${item.color || ''}</div>
+          </td>
+          <td class="p-4">${item.centro || 'Sin asignar'}</td>
+          <td class="p-4">${getBadgeStatus(item.estado)}</td>
+          <td class="p-4">${item.kilometros ? item.kilometros.toLocaleString() + ' km' : '-'}</td>
+          <td class="p-4 font-bold text-slate-800">${item.precio_contado ? item.precio_contado.toLocaleString() + ' €' : '-'}</td>
+          <td class="p-4 text-xs text-gray-600">${item.comercial || 'N/A'}</td>
+          <td class="p-4 text-center space-x-2">
+            <button onclick="editVehicle(${item.id})" class="text-blue-600 hover:text-blue-800"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button onclick="deleteVehicle(${item.id})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function getBadgeStatus(status) {
+      const s = (status || '').toLowerCase();
+      if (s.includes('disponible')) return `<span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold">Disponible</span>`;
+      if (s.includes('reserva')) return `<span class="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-semibold">Reservado</span>`;
+      if (s.includes('entreg') || s.includes('cobra')) return `<span class="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full font-semibold">${status}</span>`;
+      return `<span class="bg-gray-100 text-gray-800 text-xs px-2.5 py-1 rounded-full font-semibold">${status || 'Otro'}</span>`;
+    }
+
+    function updateKPIs(list) {
+      document.getElementById('kpi-total').innerText = list.length;
+      document.getElementById('kpi-disponibles').innerText = list.filter(i => (i.estado||'').toLowerCase().includes('disponible')).length;
+      document.getElementById('kpi-reservados').innerText = list.filter(i => (i.estado||'').toLowerCase().includes('reserva')).length;
+      document.getElementById('kpi-entregados').innerText = list.filter(i => (i.estado||'').toLowerCase().includes('entreg') || (i.estado||'').toLowerCase().includes('cobra')).length;
+    }
+
+    function filtrarStock() {
+      const q = document.getElementById("stock-search").value.toLowerCase();
+      const filtered = stockData.filter(i => 
+        (i.matricula && i.matricula.toLowerCase().includes(q)) ||
+        (i.marca && i.marca.toLowerCase().includes(q)) ||
+        (i.modelo && i.modelo.toLowerCase().includes(q)) ||
+        (i.centro && i.centro.toLowerCase().includes(q)) ||
+        (i.comercial && i.comercial.toLowerCase().includes(q))
+      );
+      renderStock(filtered);
+    }
+
+    // Modal
+    function openModal() {
+      document.getElementById("vehicle-form").reset();
+      document.getElementById("field-id").value = "";
+      document.getElementById("modal-title").innerText = "Añadir Vehículo";
+      document.getElementById("vehicle-modal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("vehicle-modal").classList.add("hidden");
+    }
+
+    function editVehicle(id) {
+      const item = stockData.find(i => i.id === id);
+      if (!item) return;
+
+      document.getElementById("field-id").value = item.id;
+      document.getElementById("field-matricula").value = item.matricula || "";
+      document.getElementById("field-estado").value = item.estado || "Disponible";
+      document.getElementById("field-marca").value = item.marca || "";
+      document.getElementById("field-modelo").value = item.modelo || "";
+      document.getElementById("field-centro").value = item.centro || "Embajadores";
+      document.getElementById("field-kilometros").value = item.kilometros || "";
+      document.getElementById("field-precio_contado").value = item.precio_contado || "";
+      document.getElementById("field-precio_financiado").value = item.precio_financiado || "";
+      document.getElementById("field-comercial").value = item.comercial || "";
+      document.getElementById("field-tasador").value = item.tasador || "";
+
+      document.getElementById("modal-title").innerText = "Editar Vehículo";
+      document.getElementById("vehicle-modal").classList.remove("hidden");
+    }
+
+    async function saveVehicle(e) {
+      e.preventDefault();
+      const id = document.getElementById("field-id").value;
+      const payload = {
+        matricula: document.getElementById("field-matricula").value,
+        estado: document.getElementById("field-estado").value,
+        marca: document.getElementById("field-marca").value,
+        modelo: document.getElementById("field-modelo").value,
+        centro: document.getElementById("field-centro").value,
+        kilometros: document.getElementById("field-kilometros").value ? parseInt(document.getElementById("field-kilometros").value) : null,
+        precio_contado: document.getElementById("field-precio_contado").value ? parseFloat(document.getElementById("field-precio_contado").value) : null,
+        precio_financiado: document.getElementById("field-precio_financiado").value ? parseFloat(document.getElementById("field-precio_financiado").value) : null,
+        comercial: document.getElementById("field-comercial").value,
+        tasador: document.getElementById("field-tasador").value
+      };
+
+      const url = id ? `/api/vehiculos/${id}` : "/api/vehiculos";
+      const method = id ? "PUT" : "POST";
+
+      await fetch(url, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      closeModal();
+      loadStock();
+    }
+
+    async function deleteVehicle(id) {
+      if (!confirm("¿Seguro que deseas eliminar este vehículo?")) return;
+      await fetch(`/api/vehiculos/${id}`, { method: "DELETE" });
+      loadStock();
+    }
+
+    // Cargar Leads
+    async function loadLeads() {
+      try {
+        const res = await fetch("/api/leads");
+        const data = await res.json();
+        const tbody = document.getElementById("leads-table-body");
+        tbody.innerHTML = (data.leads || []).map(l => `
+          <tr class="hover:bg-gray-50">
+            <td class="p-4 text-xs text-gray-500">${new Date(l.created_at).toLocaleString()}</td>
+            <td class="p-4 font-bold">${l.nombre || 'Sin nombre'}</td>
+            <td class="p-4 text-blue-600 font-semibold">${l.telefono || '-'}</td>
+            <td class="p-4"><span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">${l.operacion || 'Consulta'}</span></td>
+            <td class="p-4 font-medium">${l.vehiculo || '-'}</td>
+            <td class="p-4 text-gray-600 text-xs">${l.detalles || '-'}</td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        console.error("Error al cargar leads:", e);
+      }
+    }
   </script>
 </body>
 </html>

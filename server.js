@@ -150,10 +150,24 @@ INSTRUCCIÓN CRÍTICA DE SEGURIDAD: NO te inventes el precio, ni el año, ni los
   }
 
   const systemInstruction = `
-Eres el asistente virtual inteligente de un concesionario de compraventa de vehículos.
-REGLA DE ORO DE HONESTIDAD: Jamás inventes precios, años o kilómetros de vehículos. Si un coche no aparece en el [INVENTARIO REAL], debes decir que no lo tienes localizado en este momento o consultar con el equipo.
-Tono: Profesional, automotriz, eficiente y directo.
-Pide de forma natural el nombre y teléfono para poder contactarles.
+Eres AdIA, el asistente virtual inteligente de Yamovil, empresa líder en compraventa de vehículos de ocasión.
+Tu objetivo es interactuar con clientes que quieren COMPRAR o VENDER un coche, ofreciendo un trato excelente, profesional y resolutivo.
+MUY IMPORTANTE: Tu meta principal es captar el nombre y teléfono del cliente de forma natural para que un comercial físico cierre la venta o tase el vehículo.
+
+[DATOS DE NEGOCIO YAMOVIL]:
+- Centros y Ubicaciones (3 exposiciones):
+  1. Madrid Centro: C. de Embajadores, 147, Arganzuela, 28045 Madrid.
+  2. Alcalá de Henares: Av. de Madrid, 30, 28802 Madrid.
+  3. Pinto: A-4, KM 20,600 local, 28320 Madrid.
+- Horarios de Apertura: 
+  * Lunes a Viernes: 10:00h a 14:00h y de 16:30h a 20:30h.
+  * Sábados: 10:00h a 20:30h (Horario ininterrumpido).
+  * Domingos: 10:00h a 14:00h.
+- Garantía y Calidad: Todos nuestros vehículos se entregan totalmente revisados, con kilometraje certificado. Ofrecemos 12 meses de garantía externa con cobertura nacional. Además, en vehículos recientes, conservan la garantía oficial del fabricante (por ejemplo, Toyota, Kia, etc.).
+- Tasación y Retomas: Aceptamos el coche del cliente como parte de pago. Tasamos en el acto y sin compromiso, pero es imprescindible ver y probar el coche físicamente en cualquiera de nuestras instalaciones para dar una valoración final y precio cerrado.
+- Financiación (Dato extra): Ofrecemos financiación a medida, hasta el 100% y sin entrada, para facilitar la compra.
+
+REGLA DE ORO DE HONESTIDAD: Jamás inventes precios, años, kilómetros o características de vehículos. Si un coche no aparece en el [INVENTARIO REAL], debes decir que no lo tenemos en este momento en stock o pedir el teléfono para que el equipo comercial revise futuras entradas.
 ${contextoStock}
 `;
 
@@ -207,6 +221,72 @@ app.get("/api/leads", async (req, res) => {
   } catch (error) {
     console.error("❌ Error al obtener leads:", error.message);
     res.status(500).json({ error: "Error al consultar la base de datos" });
+  }
+});
+
+// ==================== ENDPOINTS CRUD CRM VEHÍCULOS ====================
+
+// 1. Obtener todos los vehículos (CRM)
+app.get("/api/vehiculos", async (req, res) => {
+  try {
+    const { data: vehiculos, error } = await supabase
+      .from("vehiculos")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (error) throw error;
+    res.json({ vehiculos });
+  } catch (error) {
+    console.error("❌ Error al obtener vehículos:", error.message);
+    res.status(500).json({ error: "Error al consultar inventario" });
+  }
+});
+
+// 2. Crear un nuevo vehículo
+app.post("/api/vehiculos", async (req, res) => {
+  try {
+    const nuevoCoche = req.body;
+    const { data, error } = await supabase.from("vehiculos").insert([nuevoCoche]).select();
+
+    if (error) throw error;
+    res.json({ message: "Vehículo creado con éxito", vehiculo: data[0] });
+  } catch (error) {
+    console.error("❌ Error al crear vehículo:", error.message);
+    res.status(500).json({ error: "Error al guardar vehículo" });
+  }
+});
+
+// 3. Actualizar un vehículo existente
+app.put("/api/vehiculos/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const datosActualizados = req.body;
+
+    const { data, error } = await supabase
+      .from("vehiculos")
+      .update(datosActualizados)
+      .eq("id", id)
+      .select();
+
+    if (error) throw error;
+    res.json({ message: "Vehículo actualizado correctamente", vehiculo: data[0] });
+  } catch (error) {
+    console.error("❌ Error al actualizar vehículo:", error.message);
+    res.status(500).json({ error: "Error al modificar vehículo" });
+  }
+});
+
+// 4. Borrar un vehículo
+app.delete("/api/vehiculos/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from("vehiculos").delete().eq("id", id);
+
+    if (error) throw error;
+    res.json({ message: "Vehículo eliminado con éxito" });
+  } catch (error) {
+    console.error("❌ Error al eliminar vehículo:", error.message);
+    res.status(500).json({ error: "Error al eliminar vehículo" });
   }
 });
 
